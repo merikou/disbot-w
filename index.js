@@ -1,94 +1,103 @@
 const botconfig = require("./botconfig.json");
-const Discord = require("discord.js");
+const Discord = require('discord.js');
 const Canvas = require('canvas');
+const fs = require("fs");
 
 const bot = new Discord.Client({disableEveryone: true})
 
-bot.on("ready", async () => {
-  console.log(`${bot.user.username} is online!`);
-});
+bot.commands = new Discord.Collection();
+bot.aliases = new Discord.Collection();
 
-bot.on('guildMemberAdd', async member => {
-    const channel = member.guild.channels.find(ch => ch.name === 'member-log');
-    if (!channel) return;
-    channel.send(`Welcome to our server ${member}, Once you have read the rules type ${prefix}accept to gain access to the rest of the server!`);
-  });
+fs.readdir("./commands/", (err, files) => {
+	if(err) console.log(err);
+	console.log(`Loading a total of ${files.length} commands.`);
 
-bot.on(`guildMemberAdd`, async member => {
-  guild.createChannel(`Members ${guild.memberCount}`, {
-    type: 'voice',
-    permissionOverwrites: [{
-      id: guild.id,
-      deny: ['CONNECT']
-    }]
-  })
-    .then(console.log)
-    .catch(console.error);
+	let jsfile = files.filter(f => f.split(".").pop() === "js")
+	if(jsfile.length <= 0){
+		console.log("No command.");
+		return;
+	}
+
+	jsfile.forEach((f, i) =>{
+		if (!file.endsWith(".js")) return;
+		let props = require(`./commands/${f}`);
+		console.log(`${f} loaded!`);
+		bot.commands.set(props.help.name, props);
+	})
 })
 
-bot.on('message', async message => {
-	if (message.content === '!join') {
-		bot.emit('guildMemberAdd', message.member || await message.guild.fetchMember(message.author));
-	}
+bot.once("ready", () => {
+  console.log(`${bot.user.username} is online!`);
+  bot.user.setActivity('to Mistress Meri!', { type: 'LISTENING' });
 });
 
 bot.on("message", async message => {
-  if(message.author.bot) return;
+	let prefix = botconfig.prefix;
+	if (!message.content.startsWith(prefix) || message.author.bot) return;
+	
+	let messageArray = message.content.split(" ");
+	let cmd = messageArray[0];
+	let args = messageArray.slice(1);
+	let commandfile = bot.commands.get(cmd.slice(prefix.length));
+	
+    if (bot.commands.has(commandfile)) {
+		// Assign the command, if it exists in Commands
+		cmd = bot.commands.get(commandfile)
+	  // Check if the command exists in Aliases
+	  } else if (bot.aliases.has(commandfile)) {
+		// Assign the command, if it exists in Aliases
+		cmd = bot.commands.get(bot.aliases.get(commandfile));
+	  }
+});
 
-  let prefix = botconfig.prefix;
-  let messageArray = message.content.split(" ");
-  let cmd = messageArray[0];
-  let args = messageArray.slice(1);
-
-
-  if(cmd === `${prefix}report`){
-    let rUser = message.guild.member(message.mentions.users.first() || message.guild.members.get(args[0]));
-    if(!rUser) return message.channel.send("Where u at??");
-    let reason = args.join(" ").slice(22);
-
-    return;
-  }
-
-  if(cmd === `${prefix}letter`){
-    guild.createChannel(`letter-${author}`, {
-      type: 'text',
-      permissionOverwrites: [{
-        id: guild.id,
-        deny: ['MANAGE_MESSAGES'],
-        allow: ['SEND_MESSAGES']
-      }]
-    })
-    return;
-  }
-
-
-  if(cmd === `${prefix}serverinfo`){
-
-    let sicon = message.guild.iconURL;
-    let serverembed = new Discord.RichEmbed()
-    .setDescription("Server Information")
-    .setColor(000000)
-    .setThumbnail(sicon)
-    .addField("Server Name", message.guild.name)
-    .addField("You Joined", message.member.joinedAt)
-    .addField("Total Members", message.guild.memberCount);
-
-    return message.channel.send(serverembed);
-
-  }
-
-  if(cmd === `${prefix}botinfo`){
-
-    let bicon = bot.user.displayAvatarURL;
-    let botembed = new Discord.RichEmbed()
-    .setDescription("Bot Information")
-    .setColor(000000)
-    .setThumbnail(bicon)
-    .addField("Bot Name", bot.user.username)
-    .addField("Created On", bot.user.createdAt);
-
-    return message.channel.send(botembed);
-  }
-})
+	const applyText = (canvas, text) => {
+		const ctx = canvas.getContext('2d');
+		let fontSize = 70;
+	
+		do {
+			ctx.font = `${fontSize -= 10}px sans-serif`;
+		} while (ctx.measureText(text).width > canvas.width - 300);
+	
+		return ctx.font;
+	};
+	
+	bot.on('guildMemberAdd', async member => {
+		const channel = member.guild.channels.find(ch => ch.name === 'member-log');
+		if (!channel) return;
+	
+		const canvas = Canvas.createCanvas(700, 250);
+		const ctx = canvas.getContext('2d');
+	
+		const background = await Canvas.loadImage('./temp.png');
+		ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+	
+		ctx.strokeStyle = '#74037b';
+		ctx.strokeRect(0, 0, canvas.width, canvas.height);
+	
+		ctx.font = '28px sans-serif';
+		ctx.fillStyle = '#ffffff';
+		ctx.fillText('Welcome to our server,', canvas.width / 2.5, canvas.height / 3.5);
+	
+		ctx.font = applyText(canvas, `${member.displayName}!`);
+		ctx.fillStyle = '#ffffff';
+		ctx.fillText(`${member.displayName}!`, canvas.width / 2.5, canvas.height / 1.8);
+	
+		ctx.beginPath();
+		ctx.arc(125, 125, 100, 0, Math.PI * 2, true);
+		ctx.closePath();
+		ctx.clip();
+	
+		const avatar = await Canvas.loadImage(member.user.displayAvatarURL);
+		ctx.drawImage(avatar, 25, 25, 200, 200);
+	
+		const attachment = new Discord.Attachment(canvas.toBuffer(), 'welcome-image.png');
+	
+	  channel.send(`Welcome ${member}!`, attachment);
+	})
+	
+	bot.on('message', async message => {
+		if (message.content === '!join') {
+			bot.emit('guildMemberAdd', message.member || await message.guild.fetchMember(message.author));
+		}});
 
 bot.login(botconfig.token);
