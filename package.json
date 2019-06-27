@@ -9,6 +9,8 @@
   "author": "Meri",
   "license": "ISC",
   "dependencies": {
-    "discord.js": "^11.5.1"
+    "canvas": "^2.5.0",
+    "discord.js": "^11.5.1",
+    "nodemon": "^1.19.1"
   }
 }

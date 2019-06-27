@@ -1,5 +1,6 @@
 const botconfig = require("./botconfig.json");
 const Discord = require("discord.js");
+const Canvas = require('canvas');
 
 const bot = new Discord.Client({disableEveryone: true})
 
@@ -10,7 +11,25 @@ bot.on("ready", async () => {
 bot.on('guildMemberAdd', async member => {
     const channel = member.guild.channels.find(ch => ch.name === 'member-log');
     if (!channel) return;
-    channel.send(`Welcome to our server ${member}, read the rules and then type ${prefix}accept`);
+    channel.send(`Welcome to our server ${member}, Once you have read the rules type ${prefix}accept to gain access to the rest of the server!`);
+  });
+
+bot.on(`guildMemberAdd`, async member => {
+  guild.createChannel(`Members ${guild.memberCount}`, {
+    type: 'voice',
+    permissionOverwrites: [{
+      id: guild.id,
+      deny: ['CONNECT']
+    }]
+  })
+    .then(console.log)
+    .catch(console.error);
+})
+
+bot.on('message', async message => {
+	if (message.content === '!join') {
+		bot.emit('guildMemberAdd', message.member || await message.guild.fetchMember(message.author));
+	}
 });
 
 bot.on("message", async message => {
@@ -23,12 +42,25 @@ bot.on("message", async message => {
 
 
   if(cmd === `${prefix}report`){
-    let rUser = message.guild.member(message.mentions.users.first() || message.guild members.get(args[0]));
+    let rUser = message.guild.member(message.mentions.users.first() || message.guild.members.get(args[0]));
     if(!rUser) return message.channel.send("Where u at??");
     let reason = args.join(" ").slice(22);
 
     return;
   }
+
+  if(cmd === `${prefix}letter`){
+    guild.createChannel(`letter-${author}`, {
+      type: 'text',
+      permissionOverwrites: [{
+        id: guild.id,
+        deny: ['MANAGE_MESSAGES'],
+        allow: ['SEND_MESSAGES']
+      }]
+    })
+    return;
+  }
+
 
   if(cmd === `${prefix}serverinfo`){
 
