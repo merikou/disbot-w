@@ -5,54 +5,115 @@ const fs = require("fs");
 
 const bot = new Discord.Client({disableEveryone: true})
 
-// Uses Discord.Collection() mostly for the helpers like `map()`, to be honest.
 bot.commands = new Discord.Collection();
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+for (const file of commandFiles) {
+	const command = require(`./commands/${file}`);
+	bot.commands.set(command.name, command);
+}
+
+
 bot.aliases = new Discord.Collection();
-// Load the contents of the `/cmd/` folder and each file in it.
-fs.readdir(`./commands/`, (err, files) => {
-  if(err) console.error(err);
-  console.log(`Loading a total of ${files.length} commands.`);
-  // Loops through each file in that folder
-  files.forEach(f =>{
-    // require the file itself in memory
-    let props = require(`./commmands/${f}`);
-    console.log(`${f} loaded!`);
-    // add the command to the Commands Collection
-    bot.commands.set(props.help.name, props);
-    // Loops through each Alias in that command
-    props.conf.aliases.forEach(alias => {
-      // add the alias to the Aliases Collection
-      bot.aliases.set(alias, props.help.name);
-    });
-  });
+
+/*.fs.readdir("./commands/", (err, files) => {
+	if(err) console.log(err);
+	console.log(`Loading a total of ${files.length} commands.`);
+
+	let jsfile = files.filter(f => f.split(".").pop() === "js")
+	if(jsfile.length <= 0){
+		console.log("No command.");
+		return;
+	}
+
+	jsfile.forEach((f, i) =>{
+		if (!f.endsWith(".js")) return;
+		let props = require(`./commands/${f}`);
+		console.log(`${f} loaded!`);
+		bot.commands.set(props.help, props);
+	})
+})*/
+
+bot.once("ready", () => {
+  console.log(`${bot.user.username} is online!`);
+  bot.user.setActivity('to Mistress Meri!', { type: 'LISTENING' });
 });
 
-bot.on('message', msg => {
-    // Ignore message with no prefix for performance reasons
-    if(!msg.content.startsWith(config.prefix)) return;
-    // Get the command by getting the first part of the message and removing  the prefix.
-    var command = msg.content.split(" ")[0].slice(config.prefix.length);
-    // Get the params in an array of arguments to be used in the bot
-    var params = msg.content.split(" ").slice(1);
-    // run the `elevation` function to get the user's permission level
-    let perms = bot.elevation(msg);
-    let cmd;
-    // Check if the command exists in Commands
-    if (bot.commands.has(command)) {
-      // Assign the command, if it exists in Commands
-      cmd = bot.commands.get(command)
-    // Check if the command exists in Aliases
-    } else if (bot.aliases.has(command)) {
-      // Assign the command, if it exists in Aliases
-      cmd = bot.commands.get(bot.aliases.get(command));
-    }
-  
-    if(cmd) {
-      // Check user's perm level against the required level in the command
-      if (perms < cmd.conf.permLevel) return;
-      // Run the `exports.run()` function defined in each command.
-      cmd.run(bot, msg, params);
-    }
-  });
+bot.on("message", async message => {
+	let prefix = botconfig.prefix;
+	if (!message.content.startsWith(prefix) || message.author.bot) return;
+	
+	console.log("Logged command attempt: " + message.content);
+	
+	let messageArray = message.content.split(" ");
+	let cmd = messageArray[0];
+	let args = messageArray.slice(1);
+	let commandfile = bot.commands.get(cmd.slice(prefix.length));
+	
+	bot.commands.forEach(function(value, key) {
+		console.log('Found bot command with ' + key + '=' + value);
+	});
+	
+	if (bot.commands.has(commandfile)) {
+		// Assign the command, if it exists in Commands
+		console.log("Bot commands has command: " + commandfile);
+		cmd = bot.commands.get(commandfile)
+	  // Check if the command exists in Aliases
+	  } else if (bot.aliases.has(commandfile)) {
+		// Assign the command, if it exists in Aliases
+		console.log("Bot aliases has command: " + commandfile);
+		cmd = bot.commands.get(bot.aliases.get(commandfile));
+	  }
+});
 
-  bot.login(botconfig.token);
+const applyText = (canvas, text) => {
+	const ctx = canvas.getContext('2d');
+	let fontSize = 70;
+
+	do {
+		ctx.font = `${fontSize -= 10}px sans-serif`;
+	} while (ctx.measureText(text).width > canvas.width - 300);
+
+	return ctx.font;
+};
+
+bot.on('guildMemberAdd', async member => {
+	const channel = member.guild.channels.find(ch => ch.name === 'member-log');
+	if (!channel) return;
+
+	const canvas = Canvas.createCanvas(700, 250);
+	const ctx = canvas.getContext('2d');
+
+	const background = await Canvas.loadImage('./temp.png');
+	ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+
+	ctx.strokeStyle = '#74037b';
+	ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+	ctx.font = '28px sans-serif';
+	ctx.fillStyle = '#ffffff';
+	ctx.fillText('Welcome to our server,', canvas.width / 2.5, canvas.height / 3.5);
+
+	ctx.font = applyText(canvas, `${member.displayName}!`);
+	ctx.fillStyle = '#ffffff';
+	ctx.fillText(`${member.displayName}!`, canvas.width / 2.5, canvas.height / 1.8);
+
+	ctx.beginPath();
+	ctx.arc(125, 125, 100, 0, Math.PI * 2, true);
+	ctx.closePath();
+	ctx.clip();
+
+	const avatar = await Canvas.loadImage(member.user.displayAvatarURL);
+	ctx.drawImage(avatar, 25, 25, 200, 200);
+
+	const attachment = new Discord.Attachment(canvas.toBuffer(), 'welcome-image.png');
+
+  channel.send(`Welcome ${member}!`, attachment);
+});
+
+bot.on('message', async message => {
+	if (message.content === '!join') {
+		bot.emit('guildMemberAdd', message.member || await message.guild.fetchMember(message.author));
+	}
+});
+
+bot.login(botconfig.token);

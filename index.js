@@ -19,12 +19,12 @@ fs.readdir("./commands/", (err, files) => {
 	}
 
 	jsfile.forEach((f, i) =>{
-		if (!file.endsWith(".js")) return;
+		if (!f.endsWith(".js")) return;
 		let props = require(`./commands/${f}`);
 		console.log(`${f} loaded!`);
-		bot.commands.set(props.help.name, props);
+		bot.commands.set(props.help, props);
 	})
-})
+});
 
 bot.once("ready", () => {
   console.log(`${bot.user.username} is online!`);
@@ -68,7 +68,7 @@ bot.on("message", async message => {
 		const canvas = Canvas.createCanvas(700, 250);
 		const ctx = canvas.getContext('2d');
 	
-		const background = await Canvas.loadImage('./temp.png');
+		const background = await Canvas.loadImage('./wallpaper.jpg');
 		ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
 	
 		ctx.strokeStyle = '#74037b';
@@ -93,7 +93,7 @@ bot.on("message", async message => {
 		const attachment = new Discord.Attachment(canvas.toBuffer(), 'welcome-image.png');
 	
 	  channel.send(`Welcome ${member}!`, attachment);
-	})
+	});
 	
 	bot.on('message', async message => {
 		if (message.content === '!join') {
