@@ -13,7 +13,7 @@
     "discord-logger": "^1.0.1",
     "discord.js": "^11.5.1",
     "enmap": "^5.0.0",
-    "jquery": "^3.4.1",
+    "jquery": "^3.5.0",
     "moment": "^2.24.0",
     "ms": "^2.1.2",
     "node-gyp": "^5.0.1",
